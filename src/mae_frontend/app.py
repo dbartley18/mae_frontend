@@ -897,72 +897,164 @@ def _render_survey_persona(persona):
     Helper function to render a survey persona's responses in a structured format.
     
     Args:
-        persona: Dictionary containing the persona's survey response data
+        persona: Dictionary containing the persona's survey response data matching SurveyDetails schema
     """
-    # Display persona information
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write("**Company:**", persona.get("company_name", "N/A"))
-        st.write("**Role:**", persona.get("job_title", "N/A"))
-        st.write("**Industry:**", persona.get("industry", "N/A"))
-    with col2:
-        st.write("**Experience Level:**", persona.get("experience_level", "N/A"))
-        st.write("**Market Focus:**", persona.get("market_focus", "N/A"))
-        st.write("**Decision Making Role:**", persona.get("decision_making_role", "N/A"))
+    # Create main tabs for different sections
+    persona_tabs = st.tabs([
+        "Company Info",
+        "Professional Profile",
+        "Brand Perception",
+        "Decision Making",
+        "Behavioral Profile",
+        "Feedback & Relationships"
+    ])
     
-    # Display ratings if available
-    ratings = {}
-    rating_fields = [
-        "brand_appeal", "memorability", "professionalism",
-        "market_fit", "uniqueness", "likelihood_to_recommend"
-    ]
-    
-    for field in rating_fields:
-        if field in persona:
-            display_name = field.replace("_", " ").title()
-            ratings[display_name] = persona[field]
-    
-    if ratings:
-        st.markdown("#### Ratings")
-        # Display ratings in columns (3 per row)
-        cols = st.columns(3)
-        for i, (metric, value) in enumerate(ratings.items()):
-            with cols[i % 3]:
-                if isinstance(value, (int, float)):
-                    st.metric(metric, f"{value}/10")
+    # Company Info tab
+    with persona_tabs[0]:
+        st.write("**Company Information**")
+        st.write("Company:", persona.get("company_name", "N/A"))
+        st.write("Industry:", persona.get("industry", "N/A"))
+        st.write("Company Size:", persona.get("company_size_employees", "N/A"))
+        
+        # Handle company_revenue with type checking
+        revenue = persona.get("company_revenue")
+        if revenue is not None:
+            try:
+                if isinstance(revenue, (int, float)):
+                    formatted_revenue = f"${revenue:,.2f}"
+                elif isinstance(revenue, str):
+                    # Try to convert string to float if it's numeric
+                    try:
+                        revenue_float = float(revenue.replace('$', '').replace(',', ''))
+                        formatted_revenue = f"${revenue_float:,.2f}"
+                    except ValueError:
+                        formatted_revenue = revenue
                 else:
-                    st.metric(metric, value)
-    
-    # Display qualitative feedback
-    if "qualitative_feedback" in persona:
-        st.markdown("#### Qualitative Feedback")
-        st.write(persona["qualitative_feedback"])
-    
-    # Display specific feedback categories
-    feedback_categories = {
-        "first_impression": "First Impression",
-        "brand_perception": "Brand Perception",
-        "target_audience_fit": "Target Audience Fit",
-        "competitive_advantage": "Competitive Advantage",
-        "suggested_improvements": "Suggested Improvements"
-    }
-    
-    has_detailed_feedback = any(key in persona for key in feedback_categories.keys())
-    if has_detailed_feedback:
-        st.markdown("#### Detailed Feedback")
-        for key, display_name in feedback_categories.items():
-            if key in persona and persona[key]:
-                st.write(f"**{display_name}:**", persona[key])
-    
-    # Display any additional insights
-    if "additional_insights" in persona and persona["additional_insights"]:
-        st.markdown("#### Additional Insights")
-        insights = persona["additional_insights"]
-        if isinstance(insights, list):
-            for insight in insights:
-                st.write("•", insight)
+                    formatted_revenue = str(revenue)
+                st.write("Annual Revenue:", formatted_revenue)
+            except Exception:
+                st.write("Annual Revenue:", str(revenue))
         else:
-            st.write(insights)
+            st.write("Annual Revenue:", "N/A")
+    
+    # Professional Profile tab
+    with persona_tabs[1]:
+        st.write("**Professional Profile**")
+        st.write("Job Title:", persona.get("job_title", "N/A"))
+        st.write("Department:", persona.get("department", "N/A"))
+        st.write("Seniority:", persona.get("seniority", "N/A"))
+        st.write("Education:", persona.get("education_level", "N/A"))
+        if "years_of_experience" in persona:
+            st.write("Experience:", f"{persona['years_of_experience']} years" if persona['years_of_experience'] else "N/A")
+    
+    # Brand Perception tab
+    with persona_tabs[2]:
+        st.markdown("#### Brand Perception Scores")
+        score_cols = st.columns(3)
+        scores = {
+            "Personality Fit": persona.get("personality_fit_score"),
+            "Competitor Benchmarking": persona.get("competitor_benchmarking_score"),
+            "Brand Promise Perception": persona.get("brand_promise_perception_score"),
+            "Market Adoption": persona.get("simulated_market_adoption_score"),
+            "Competitive Differentiation": persona.get("competitive_differentiation_score")
+        }
+        
+        for i, (metric, value) in enumerate(scores.items()):
+            with score_cols[i % 3]:
+                if value is not None:
+                    st.metric(metric, f"{value}/10")
+    
+    # Decision Making tab
+    with persona_tabs[3]:
+        st.markdown("#### Decision Making Profile")
+        decision_cols = st.columns(2)
+        with decision_cols[0]:
+            st.write("**Decision Making Style:**", persona.get("decision_making_style", "N/A"))
+            st.write("**Information Sources:**", persona.get("information_sources", "N/A"))
+            st.write("**Risk Attitude:**", persona.get("attitude_towards_risk", "N/A"))
+            st.write("**Decision Maker:**", "Yes" if persona.get("decision_maker") else "No")
+            st.write("**Budget Authority:**", persona.get("budget_authority", "N/A"))
+        with decision_cols[1]:
+            st.write("**Pain Points:**", persona.get("pain_points", "N/A"))
+            st.write("**Reports To:**", persona.get("reports_to", "N/A"))
+            st.write("**Buying Group:**", persona.get("buying_group_structure", "N/A"))
+            st.write("**Success Metrics:**", persona.get("success_metrics_product_service", "N/A"))
+    
+    # Behavioral Profile tab
+    with persona_tabs[4]:
+        behavior_subtabs = st.tabs(["Purchasing & Online", "Brand Interaction", "Professional Network"])
+        
+        with behavior_subtabs[0]:
+            st.write("**Purchasing Behavior:**", persona.get("purchasing_behavior", "N/A"))
+            st.write("**Online Behavior:**", persona.get("online_behavior", "N/A"))
+            st.write("**Content Consumption:**", persona.get("content_consumption_habits", "N/A"))
+        
+        with behavior_subtabs[1]:
+            st.write("**Brand Interaction:**", persona.get("interaction_with_brand", "N/A"))
+            st.write("**Vendor Preferences:**", persona.get("vendor_relationship_preferences", "N/A"))
+            st.write("**Channel Preferences:**", persona.get("channel_preferences_brand_interaction", "N/A"))
+            st.write("**Social Media Usage:**", persona.get("social_media_usage", "N/A"))
+        
+        with behavior_subtabs[2]:
+            st.write("**Professional Associations:**", persona.get("professional_associations", "N/A"))
+            st.write("**Influence Level:**", persona.get("influence_within_company", "N/A"))
+    
+    # Feedback & Relationships tab
+    with persona_tabs[5]:
+        feedback_subtabs = st.tabs(["Qualitative Feedback", "Brand Relationships", "Demographics"])
+        
+        with feedback_subtabs[0]:
+            st.write("**Emotional Association:**", persona.get("emotional_association", "N/A"))
+            st.write("**Qualitative Feedback Summary:**", persona.get("qualitative_feedback_summary", "N/A"))
+            
+            # Display raw qualitative feedback if available
+            raw_feedback = persona.get("raw_qualitative_feedback")
+            if raw_feedback:
+                st.markdown("##### Detailed Qualitative Feedback")
+                if isinstance(raw_feedback, dict):
+                    feedback_cols = st.columns(2)
+                    for i, (aspect, feedback) in enumerate(raw_feedback.items()):
+                        with feedback_cols[i % 2]:
+                            st.markdown(f"**{aspect}:**")
+                            st.markdown(feedback)
+                            st.markdown("---")
+                else:
+                    # If raw_feedback is a string, display it directly
+                    st.markdown(raw_feedback)
+            
+            # Motivations and Frustrations
+            motivation_cols = st.columns(2)
+            with motivation_cols[0]:
+                st.write("**Motivations:**", persona.get("motivations", "N/A"))
+            with motivation_cols[1]:
+                st.write("**Frustrations:**", persona.get("frustrations_annoyances", "N/A"))
+        
+        with feedback_subtabs[1]:
+            # Current Brand Relationships
+            brand_relationships = persona.get("current_brand_relationships")
+            if brand_relationships:
+                st.markdown("#### Current Brand Relationships")
+                if isinstance(brand_relationships, dict):
+                    relationship_cols = st.columns(2)
+                    for i, (brand, relationship) in enumerate(brand_relationships.items()):
+                        with relationship_cols[i % 2]:
+                            st.markdown(f"**{brand}:**")
+                            st.markdown(relationship)
+                            st.markdown("---")
+                else:
+                    # If it's a string, display directly
+                    st.markdown(brand_relationships)
+        
+        with feedback_subtabs[2]:
+            st.markdown("#### Additional Demographics")
+            st.write("**Generation/Age Range:**", persona.get("generation_age_range", "N/A"))
+            st.write("**Persona Archetype:**", persona.get("persona_archetype_type", "N/A"))
+    
+    # Final Recommendation (outside tabs, always visible)
+    st.markdown("#### Final Recommendation")
+    st.write(persona.get("final_survey_recommendation", "No recommendation provided"))
+    
+    st.markdown("---")  # Visual separator between personas
 
 def _render_domain_analysis(analysis):
     """
