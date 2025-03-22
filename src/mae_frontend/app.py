@@ -1052,7 +1052,6 @@ def render_thread_data(thread_data):
         "Name Generation",
         "Name Analysis",
         "Name Evaluation",
-        "Post Processing",
         "Translation Analysis",
         "Domain Analysis",
         "Research",
@@ -1288,13 +1287,92 @@ def render_thread_data(thread_data):
         else:
             st.info("No evaluation results found.")
     
-    # 5. Post Processing with child tabs
+    # 5. Translation Analysis (now a parent tab)
     with tabs[4]:
-        st.markdown("**Post-Processing Analyses**")
-        post_processing_tabs = st.tabs(["SEO Analysis", "Survey Results", "Competitor Analysis"])
+        st.markdown("**Translation Analysis Results**")
+        translation_analysis = find_value_in_data(thread_data, ["translation_analysis_results"])
+        if translation_analysis:
+            # Handle both list and dictionary formats
+            if isinstance(translation_analysis, dict):
+                # If it's already organized by brand name and language
+                for brand_name, languages in translation_analysis.items():
+                    st.markdown(f"### {brand_name}")
+                    for lang, analysis in languages.items():
+                        with st.expander(f"{lang} Analysis", expanded=True):
+                            _render_translation_analysis(analysis)
+            elif isinstance(translation_analysis, list):
+                # Organize list data by brand name and language
+                organized_data = {}
+                for analysis in translation_analysis:
+                    if isinstance(analysis, dict):
+                        brand_name = analysis.get("brand_name", "Unknown Brand")
+                        target_lang = analysis.get("target_language", "Unknown Language")
+                        
+                        if brand_name not in organized_data:
+                            organized_data[brand_name] = {}
+                        organized_data[brand_name][target_lang] = analysis
+                
+                # Display organized data
+                for brand_name, languages in organized_data.items():
+                    st.markdown(f"### {brand_name}")
+                    for lang, analysis in languages.items():
+                        with st.expander(f"{lang} Analysis", expanded=True):
+                            _render_translation_analysis(analysis)
+        else:
+            st.info("No translation analysis data found.")
+
+    # 6. Domain Analysis (now a parent tab)
+    with tabs[5]:
+        st.markdown("**Domain Analysis Results**")
+        domain_analysis = find_value_in_data(thread_data, ["domain_analysis_results"])
+        if domain_analysis:
+            if isinstance(domain_analysis, dict):
+                # Handle dictionary format
+                for name, analysis in domain_analysis.items():
+                    with st.expander(f"Analysis for: {name}", expanded=True):
+                        _render_domain_analysis(analysis)
+            elif isinstance(domain_analysis, list):
+                # Handle list format
+                for analysis in domain_analysis:
+                    if isinstance(analysis, dict):
+                        name = analysis.get("brand_name", "") or analysis.get("name", "Unknown")
+                        with st.expander(f"Analysis for: {name}", expanded=True):
+                            _render_domain_analysis(analysis)
+        else:
+            st.info("No domain analysis data found.")
+    
+    # 7. Research with child tabs
+    with tabs[6]:
+        st.markdown("**Market Research**")
+        research_tabs = st.tabs([
+            "Market Research",
+            "SEO Analysis",
+            "Survey Results",
+            "Competitor Analysis"
+        ])
         
+        # Market Research
+        with research_tabs[0]:
+            st.subheader("Market Research")
+            market_research = find_value_in_data(thread_data, ["market_research_results"])
+            if market_research:
+                if isinstance(market_research, dict):
+                    # Handle dictionary format
+                    for name, analysis in market_research.items():
+                        with st.expander(f"Market Analysis for: {name}", expanded=False):
+                            _render_market_research(analysis)
+                elif isinstance(market_research, list):
+                    # Handle list format
+                    for analysis in market_research:
+                        if isinstance(analysis, dict):
+                            name = analysis.get("brand_name", "") or analysis.get("name", "Unknown")
+                            with st.expander(f"Market Analysis for: {name}", expanded=False):
+                                _render_market_research(analysis)
+            else:
+                st.info("No market research data found.")
+
         # SEO Analysis
-        with post_processing_tabs[0]:
+        with research_tabs[1]:
             st.subheader("SEO Analysis")
             seo_analysis = find_value_in_data(thread_data, ["seo_analysis_results"])
             if seo_analysis:
@@ -1412,7 +1490,7 @@ def render_thread_data(thread_data):
                 st.info("No SEO analysis data found.")
 
         # Survey Results
-        with post_processing_tabs[1]:
+        with research_tabs[2]:
             st.subheader("Survey Simulation Results")
             survey_results = find_value_in_data(thread_data, ["survey_simulation_results"])
             if survey_results:
@@ -1452,7 +1530,7 @@ def render_thread_data(thread_data):
                 st.info("No survey simulation results found.")
 
         # Competitor Analysis
-        with post_processing_tabs[2]:
+        with research_tabs[3]:
             st.subheader("Competitor Analysis")
             competitor_analysis = find_value_in_data(thread_data, ["competitor_analysis_results"])
             if competitor_analysis:
@@ -1510,87 +1588,8 @@ def render_thread_data(thread_data):
             else:
                 st.info("No competitor analysis data found.")
     
-    # 6. Translation Analysis (now a parent tab)
-    with tabs[5]:
-        st.markdown("**Translation Analysis Results**")
-        translation_analysis = find_value_in_data(thread_data, ["translation_analysis_results"])
-        if translation_analysis:
-            # Handle both list and dictionary formats
-            if isinstance(translation_analysis, dict):
-                # If it's already organized by brand name and language
-                for brand_name, languages in translation_analysis.items():
-                    st.markdown(f"### {brand_name}")
-                    for lang, analysis in languages.items():
-                        with st.expander(f"{lang} Analysis", expanded=True):
-                            _render_translation_analysis(analysis)
-            elif isinstance(translation_analysis, list):
-                # Organize list data by brand name and language
-                organized_data = {}
-                for analysis in translation_analysis:
-                    if isinstance(analysis, dict):
-                        brand_name = analysis.get("brand_name", "Unknown Brand")
-                        target_lang = analysis.get("target_language", "Unknown Language")
-                        
-                        if brand_name not in organized_data:
-                            organized_data[brand_name] = {}
-                        organized_data[brand_name][target_lang] = analysis
-                
-                # Display organized data
-                for brand_name, languages in organized_data.items():
-                    st.markdown(f"### {brand_name}")
-                    for lang, analysis in languages.items():
-                        with st.expander(f"{lang} Analysis", expanded=True):
-                            _render_translation_analysis(analysis)
-        else:
-            st.info("No translation analysis data found.")
-
-    # 7. Domain Analysis (now a parent tab)
-    with tabs[6]:
-        st.markdown("**Domain Analysis Results**")
-        domain_analysis = find_value_in_data(thread_data, ["domain_analysis_results"])
-        if domain_analysis:
-            if isinstance(domain_analysis, dict):
-                # Handle dictionary format
-                for name, analysis in domain_analysis.items():
-                    with st.expander(f"Analysis for: {name}", expanded=True):
-                        _render_domain_analysis(analysis)
-            elif isinstance(domain_analysis, list):
-                # Handle list format
-                for analysis in domain_analysis:
-                    if isinstance(analysis, dict):
-                        name = analysis.get("brand_name", "") or analysis.get("name", "Unknown")
-                        with st.expander(f"Analysis for: {name}", expanded=True):
-                            _render_domain_analysis(analysis)
-        else:
-            st.info("No domain analysis data found.")
-    
-    # 8. Research with child tabs
+    # 8. Report Details
     with tabs[7]:
-        st.markdown("**Market Research**")
-        research_tabs = st.tabs(["Market Research"])
-        
-        # Market Research
-        with research_tabs[0]:
-            st.subheader("Market Research")
-            market_research = find_value_in_data(thread_data, ["market_research_results"])
-            if market_research:
-                if isinstance(market_research, dict):
-                    # Handle dictionary format
-                    for name, analysis in market_research.items():
-                        with st.expander(f"Market Analysis for: {name}", expanded=False):
-                            _render_market_research(analysis)
-                elif isinstance(market_research, list):
-                    # Handle list format
-                    for analysis in market_research:
-                        if isinstance(analysis, dict):
-                            name = analysis.get("brand_name", "") or analysis.get("name", "Unknown")
-                            with st.expander(f"Market Analysis for: {name}", expanded=False):
-                                _render_market_research(analysis)
-            else:
-                st.info("No market research data found.")
-    
-    # 9. Report Details
-    with tabs[8]:
         
         # Display input prompt
         user_prompt = find_value_in_data(thread_data, ["user_prompt"])
