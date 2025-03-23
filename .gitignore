@@ -2,7 +2,6 @@
 .env
 .env.*
 !.env.example
-*secrets.toml
 
 # Python
 __pycache__/
@@ -228,3 +227,7 @@ market_research*
 seo_online_discovery*
 translation_analysis*
 
+requirements.md
+requirements/complete_flow
+requirements/node_to_step_mapping.md
+requirements/partial_stream_from_debug.md
