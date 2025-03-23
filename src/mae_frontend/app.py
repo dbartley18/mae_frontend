@@ -1789,7 +1789,7 @@ def _render_market_research(analysis):
     # Recommendations tab
     with market_tabs[3]:
         st.markdown("##### Strategic Recommendations")
-        st.write(analysis.get("recommendations", "No recommendations available"))
+        st.write(analysis.get("recommendations", "No recommendations available right now"))
 
 # Main application layout
 st.title("MAE Brand Namer")
