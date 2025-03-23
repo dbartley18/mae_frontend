@@ -87,10 +87,10 @@ if "industry_selection" not in st.session_state:
 
 # Example prompts
 example_prompts = {
-    "Agentic Software": "A B2B enterprise software company providing AI-powered software solutions for Fortune 500 companies",
-    "Professional Services": "A global management consulting firm specializing in digital transformation and operational excellence",
-    "Financial Services": "An institutional investment management firm focusing on sustainable infrastructure investments",
-    "B2B HealthTech Company": "A healthcare technology company providing enterprise solutions for hospital resource management"
+    "Industry Summit": "A premier global gathering, fostering the convergence of industry leaders, innovators, and visionaries to explore the future. This event serves as a platform for collaborative dialogue, cutting-edge insights, and transformative strategies, designed to empower participants to navigate the evolving landscape and drive meaningful change",
+    "Professional Services": "A global management consulting firm specializing in digital transformation and operational excellence, delivering [Specific Outcome/Result] for [Target Client/Industry] through [Key Service/Approach]",
+    "Financial Services": "A [Investment Entity Type, e.g., Institutional, Private, Specialized] investment management firm focusing on sustainable infrastructure investments, emphasizing [Specific Investment Strategy/Philosophy] and targeting [Specific Investor/Market Segment]. We aim to deliver [Specific Financial/Impact Outcome] through [Key Differentiator/Expertise]",
+    "B2B HealthTech Company": "A pioneering healthcare technology company delivering intelligent, enterprise-grade solutions that optimize hospital resource management, driving efficiency, enhancing patient care, and empowering healthcare providers to navigate the complexities of modern hospital operations."
 }
 
 # Define industry hierarchy data structure
@@ -1081,7 +1081,7 @@ def _render_domain_analysis(analysis):
     
     # Domain Options tab
     with analysis_tabs[0]:
-        st.markdown("##### Alternative TLDs")
+        st.write("**Alternative TLDs**")
         alternative_tlds = analysis.get("alternative_tlds", [])
         if alternative_tlds:
             # Split TLDs into two columns
@@ -1098,7 +1098,6 @@ def _render_domain_analysis(analysis):
     
     # Social Media Availability tab
     with analysis_tabs[1]:
-        st.markdown("##### Social Media Handle Availability")
         social_handles = analysis.get("social_media_availability", [])
         if social_handles:
             for handle in social_handles:
@@ -1108,23 +1107,22 @@ def _render_domain_analysis(analysis):
     
     # Technical Analysis tab
     with analysis_tabs[2]:
-        st.markdown("##### Domain Technical Details")
         st.write("**Domain Length & Readability:**", analysis.get("domain_length_readability", ""))
         st.write("**Misspellings/Variations Available:**", "Yes" if analysis.get("misspellings_variations_available") else "No")
         
         # Display technical notes if available
         if analysis.get("notes"):
-            st.markdown("##### Technical Notes")
+            st.write("**Notes**")
             st.write(analysis["notes"])
     
     # Future Considerations tab
     with analysis_tabs[3]:
-        st.markdown("##### Scalability Analysis")
+        st.write("**Scalability Analysis**")
         st.write(analysis.get("scalability_future_proofing", "No information available"))
         
         # Additional considerations if available
         if analysis.get("notes"):
-            st.markdown("##### Additional Considerations")
+            st.write("**Additional Considerations**")
             st.write(analysis["notes"])
 
 def render_thread_data(thread_data):
@@ -1243,7 +1241,7 @@ def render_thread_data(thread_data):
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            st.subheader("Name Details")
+                            st.write("**Name Details**")
                             metrics = {
                                 "Rank": rank if rank != 999 else None,
                                 "Category": name_data.get("naming_category", ""),
@@ -1258,7 +1256,7 @@ def render_thread_data(thread_data):
                                     st.metric(metric, value)
                         
                         with col2:
-                            st.subheader("Rationale")
+                            st.write("**Rationale**")
                             rationale = name_data.get("rationale", "") or name_data.get("name_generation_methodology", "")
                             if rationale:
                                 st.write(rationale)
@@ -1272,7 +1270,7 @@ def render_thread_data(thread_data):
         
         # Linguistic Analysis
         with pre_analysis_tabs[0]:
-            st.subheader("Linguistic Analysis")
+            st.markdown("**Linguistic Analysis**")
             linguistic_analysis = find_value_in_data(thread_data, ["linguistic_analysis_results"])
             if linguistic_analysis:
                 if isinstance(linguistic_analysis, dict):
@@ -1280,10 +1278,10 @@ def render_thread_data(thread_data):
                         with st.expander(f"Analysis for: {name}", expanded=True):
                             cols = st.columns(2)
                             with cols[0]:
-                                st.metric("Pronunciation Ease", analysis.get("pronunciation_ease"))
-                                st.metric("Sound Symbolism", analysis.get("sound_symbolism"))
-                                st.metric("Overall Readability", analysis.get("overall_readability_score"))
-                                st.metric("Rank", analysis.get("rank"))
+                                st.write("**Pronunciation Ease:**", analysis.get("pronunciation_ease"))
+                                st.write("**Sound Symbolism:**", analysis.get("sound_symbolism"))
+                                st.write("**Overall Readability:**", analysis.get("overall_readability_score"))
+                                st.write("**Rank:**", analysis.get("rank"))
                             with cols[1]:
                                 st.write("**Euphony vs Cacophony:**", analysis.get("euphony_vs_cacophony"))
                                 st.write("**Rhythm and Meter:**", analysis.get("rhythm_and_meter"))
@@ -1298,7 +1296,7 @@ def render_thread_data(thread_data):
         
         # Semantic Analysis
         with pre_analysis_tabs[1]:
-            st.subheader("Semantic Analysis")
+            st.markdown("**Semantic Analysis**")
             semantic_analysis = find_value_in_data(thread_data, ["semantic_analysis_results"])
             if semantic_analysis and isinstance(semantic_analysis, list):
                 for analysis in semantic_analysis:
@@ -1329,7 +1327,7 @@ def render_thread_data(thread_data):
         
         # Cultural Sensitivity Analysis
         with pre_analysis_tabs[2]:
-            st.subheader("Cultural Sensitivity Analysis")
+            st.markdown("**Cultural Sensitivity Analysis**")
             cultural_analysis = find_value_in_data(thread_data, ["cultural_analysis_results"])
             if cultural_analysis:
                 if isinstance(cultural_analysis, dict):
@@ -1388,7 +1386,7 @@ def render_thread_data(thread_data):
             if isinstance(translation_analysis, dict):
                 # If it's already organized by brand name and language
                 for brand_name, languages in translation_analysis.items():
-                    st.markdown(f"### {brand_name}")
+                    st.caption(f"{brand_name}")
                     for lang, analysis in languages.items():
                         with st.expander(f"{lang} Analysis", expanded=True):
                             _render_translation_analysis(analysis)
@@ -1406,7 +1404,7 @@ def render_thread_data(thread_data):
                 
                 # Display organized data
                 for brand_name, languages in organized_data.items():
-                    st.markdown(f"### {brand_name}")
+                    st.caption(f"{brand_name}")
                     for lang, analysis in languages.items():
                         with st.expander(f"{lang} Analysis", expanded=True):
                             _render_translation_analysis(analysis)
@@ -1445,7 +1443,6 @@ def render_thread_data(thread_data):
         
         # Market Research
         with research_tabs[0]:
-            st.subheader("Market Research")
             market_research = find_value_in_data(thread_data, ["market_research_results"])
             if market_research:
                 if isinstance(market_research, dict):
@@ -1465,7 +1462,6 @@ def render_thread_data(thread_data):
 
         # SEO Analysis
         with research_tabs[1]:
-            st.subheader("SEO Analysis")
             seo_analysis = find_value_in_data(thread_data, ["seo_analysis_results"])
             if seo_analysis:
                 # Handle both list and dictionary formats
@@ -1473,7 +1469,7 @@ def render_thread_data(thread_data):
                     # Process each brand's SEO analysis
                     for brand_analysis in seo_analysis:
                         brand_name = brand_analysis.get("brand_name", "Unknown Brand")
-                        st.markdown(f"### {brand_name}")
+                        st.caption(f"{brand_name}")
                         
                         with st.expander("SEO Analysis Details", expanded=True):
                             # Overview metrics in columns
@@ -1527,7 +1523,7 @@ def render_thread_data(thread_data):
                 elif isinstance(seo_analysis, dict):
                     # Handle dictionary format (single brand or name-keyed analyses)
                     for name, analysis in seo_analysis.items():
-                        st.markdown(f"### {name}")
+                        st.caption(f"{name}")
                         
                         with st.expander("SEO Analysis Details", expanded=True):
                             # Overview metrics in columns
@@ -1583,7 +1579,6 @@ def render_thread_data(thread_data):
 
         # Survey Results
         with research_tabs[2]:
-            st.subheader("Survey Simulation Results")
             survey_results = find_value_in_data(thread_data, ["survey_simulation_results"])
             if survey_results:
                 # Handle both list and dictionary formats
@@ -1591,11 +1586,11 @@ def render_thread_data(thread_data):
                     # Process each brand's survey results
                     for brand_survey in survey_results:
                         brand_name = brand_survey.get("brand_name", "Unknown Brand")
-                        st.markdown(f"### {brand_name}")
+                        st.caption(f"{brand_name}")
                         
                         individual_personas = brand_survey.get("individual_personas", [])
                         if individual_personas:
-                            st.markdown("#### Individual Persona Responses")
+                            st.write("**Individual Persona Responses**")
                             for persona in individual_personas:
                                 company_name = persona.get('company_name', 'Unknown Company')
                                 job_title = persona.get('job_title', 'Unknown Role')
@@ -1609,7 +1604,7 @@ def render_thread_data(thread_data):
                     # Handle single brand survey results
                     individual_personas = survey_results.get("individual_personas", [])
                     if individual_personas:
-                        st.markdown("#### Individual Persona Responses")
+                        st.write("**Individual Persona Responses**")
                         for persona in individual_personas:
                             company_name = persona.get('company_name', 'Unknown Company')
                             job_title = persona.get('job_title', 'Unknown Role')
@@ -1623,7 +1618,6 @@ def render_thread_data(thread_data):
 
         # Competitor Analysis
         with research_tabs[3]:
-            st.subheader("Competitor Analysis")
             competitor_analysis = find_value_in_data(thread_data, ["competitor_analysis_results"])
             if competitor_analysis:
                 if isinstance(competitor_analysis, list):
@@ -1631,7 +1625,7 @@ def render_thread_data(thread_data):
                         brand_name = brand_analysis.get("brand_name", "Unknown Brand")
                         competitors = brand_analysis.get("competitors", [])
                         
-                        st.markdown(f"### {brand_name}")
+                        st.caption(f"{brand_name}")
                         if competitors:
                             for competitor in competitors:
                                 with st.expander(f"Analysis for: {competitor.get('competitor_name', 'Unknown Competitor')}", expanded=True):
@@ -1754,10 +1748,10 @@ def _render_market_research(analysis):
     
     # Trends & Competition tab
     with market_tabs[0]:
-        st.markdown("##### Emerging Trends")
+        st.write("**Emerging Trends**")
         st.write(analysis.get("emerging_trends", "No trend data available"))
         
-        st.markdown("##### Key Competitors")
+        st.write("**Key Competitors**")
         competitors = analysis.get("key_competitors", [])
         if competitors:
             for competitor in competitors:
@@ -1765,20 +1759,20 @@ def _render_market_research(analysis):
         else:
             st.write("No competitor data available")
             
-        st.markdown("##### Competitive Analysis")
+        st.write("**Competitive Analysis**")
         st.write(analysis.get("competitive_analysis", "No competitive analysis available"))
     
     # Risks & Barriers tab
     with market_tabs[1]:
-        st.markdown("##### Potential Risks")
+        st.write("**Potential Risks**")
         st.write(analysis.get("potential_risks", "No risk data available"))
         
-        st.markdown("##### Market Entry Barriers")
+        st.write("**Market Entry Barriers**")
         st.write(analysis.get("market_entry_barriers", "No barrier data available"))
     
     # Customer Analysis tab
     with market_tabs[2]:
-        st.markdown("##### Customer Pain Points")
+        st.write("**Customer Pain Points**")
         pain_points = analysis.get("customer_pain_points", [])
         if pain_points:
             for point in pain_points:
@@ -1788,8 +1782,8 @@ def _render_market_research(analysis):
     
     # Recommendations tab
     with market_tabs[3]:
-        st.markdown("##### Strategic Recommendations")
-        st.write(analysis.get("recommendations", "No recommendations available right now"))
+        st.write("**Strategic Recommendations**")
+        st.write(analysis.get("recommendations", "No recommendations available"))
 
 # Main application layout
 st.title("MAE Brand Namer")
