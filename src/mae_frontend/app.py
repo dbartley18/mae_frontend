@@ -1166,7 +1166,7 @@ def render_thread_data(thread_data):
             if analysis.get("phonetic_similarity_undesirable"):
                 st.warning("⚠️ Potential undesirable phonetic similarity detected")
             if analysis.get("rank"):
-                st.metric("Translation Viability Score", analysis.get("rank"))
+                st.write("**Translation Viability Score:**", analysis.get("rank"))
         
         # Additional Notes
         if analysis.get("notes"):
@@ -1208,8 +1208,6 @@ def render_thread_data(thread_data):
                     elif isinstance(value, dict):
                         _render_analysis_section(value, display_name.lower())
         
-        if not any(brand_context.values()):
-            st.info("No brand context data found.")
     
     # 2. Name Generation
     with tabs[1]:
@@ -1754,8 +1752,15 @@ def _render_market_research(analysis):
         st.write("**Key Competitors**")
         competitors = analysis.get("key_competitors", [])
         if competitors:
-            for competitor in competitors:
-                st.write(f"- {competitor}")
+            # Handle both string and list formats
+            if isinstance(competitors, str):
+                # Split by newlines if it's a string with multiple competitors
+                competitor_list = [comp.strip() for comp in competitors.split('\n') if comp.strip()]
+            else:
+                competitor_list = competitors
+                
+            for competitor in competitor_list:
+                st.markdown(f"- {competitor}")
         else:
             st.write("No competitor data available")
             
@@ -1775,8 +1780,15 @@ def _render_market_research(analysis):
         st.write("**Customer Pain Points**")
         pain_points = analysis.get("customer_pain_points", [])
         if pain_points:
-            for point in pain_points:
-                st.write(f"- {point}")
+            # Handle both string and list formats
+            if isinstance(pain_points, str):
+                # Split by newlines if it's a string with multiple points
+                points = [point.strip() for point in pain_points.split('\n') if point.strip()]
+            else:
+                points = pain_points
+                
+            for point in points:
+                st.markdown(f"- {point}")
         else:
             st.write("No customer pain points identified")
     
@@ -2460,18 +2472,6 @@ with tab2:
                 
                 # Render thread data
                 render_thread_data(thread_history)
-
-                # Option to view raw data
-                if st.button("View Raw Thread Data"):
-                    # Thread details
-                    thread_details = get_thread_details(selected_thread)
-                    render_thread_data(thread_details)
-                    
-                    # Thread runs
-                    thread_runs = get_thread_runs(selected_thread)
-                    if thread_runs:
-                        st.markdown("#### Thread Runs")
-                        render_thread_data(thread_runs)
 
 # Footer
 st.markdown("---")
