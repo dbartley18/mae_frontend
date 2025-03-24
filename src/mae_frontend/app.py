@@ -1253,7 +1253,7 @@ def render_thread_data(thread_data):
                             
                             for metric, value in metrics.items():
                                 if value:
-                                    st.metric(metric, value)
+                                    st.write(f"**{metric}:** {value}")
                         
                         with col2:
                             st.write("**Rationale**")
@@ -1307,13 +1307,13 @@ def render_thread_data(thread_data):
                             with cols[0]:
                                 st.write("**Denotative Meaning:**", analysis.get("denotative_meaning"))
                                 st.write("**Etymology:**", analysis.get("etymology"))
-                                st.metric("Descriptiveness", analysis.get("descriptiveness"))
-                                st.metric("Concreteness", analysis.get("concreteness"))
+                                st.write("**Descriptiveness:**", analysis.get("descriptiveness"))
+                                st.write("**Concreteness:**", analysis.get("concreteness"))
                             with cols[1]:
                                 st.write("**Brand Name Type:**", analysis.get("brand_name_type"))
                                 st.write("**Emotional Valence:**", analysis.get("emotional_valence"))
                                 st.write("**Sensory Associations:**", analysis.get("sensory_associations"))
-                                st.metric("Brand Fit/Relevance", analysis.get("brand_fit_relevance"))
+                                st.write("**Brand Fit/Relevance:**", analysis.get("brand_fit_relevance"))
                             
                             # Additional semantic details
                             st.write("**Figurative Language:**", analysis.get("figurative_language"))
@@ -1321,7 +1321,7 @@ def render_thread_data(thread_data):
                                 st.info("Contains irony or paradox")
                             if analysis.get("humor_playfulness"):
                                 st.info("Contains humor/playfulness")
-                            st.metric("Memorability Score", analysis.get("memorability_score"))
+                            st.write("**Memorability Score:**", analysis.get("memorability_score"))
             else:
                 st.info("No semantic analysis data found.")
         
@@ -1338,7 +1338,7 @@ def render_thread_data(thread_data):
                                 st.write("**Cultural Connotations:**", analysis.get("cultural_connotations"))
                                 st.write("**Symbolic Meanings:**", analysis.get("symbolic_meanings"))
                                 st.write("**Overall Risk Rating:**", analysis.get("overall_risk_rating"))
-                                st.metric("Rank", analysis.get("rank"))
+                                st.write("**Rank:**", analysis.get("rank"))
                             with cols[1]:
                                 st.write("**Religious Sensitivities:**", analysis.get("religious_sensitivities"))
                                 st.write("**Social/Political Taboos:**", analysis.get("social_political_taboos"))
@@ -1359,13 +1359,13 @@ def render_thread_data(thread_data):
                     with st.expander(f"Evaluation for: {name}", expanded=True):
                         cols = st.columns(3)
                         with cols[0]:
-                            st.metric("Overall Score", eval_data.get("overall_score"))
-                            st.metric("Brand Fit", eval_data.get("brand_fit_score"))
-                            st.metric("Strategic Alignment", eval_data.get("strategic_alignment_score"))
+                            st.write("**Overall Score:**", eval_data.get("overall_score"))
+                            st.write("**Brand Fit:**", eval_data.get("brand_fit_score"))
+                            st.write("**Strategic Alignment:**", eval_data.get("strategic_alignment_score"))
                         with cols[1]:
-                            st.metric("Memorability", eval_data.get("memorability_score"))
-                            st.metric("Pronounceability", eval_data.get("pronounceability_score"))
-                            st.metric("Domain Viability", eval_data.get("domain_viability_score"))
+                            st.write("**Memorability:**", eval_data.get("memorability_score"))
+                            st.write("**Pronounceability:**", eval_data.get("pronounceability_score"))
+                            st.write("**Domain Viability:**", eval_data.get("domain_viability_score"))
                         with cols[2]:
                             st.write("**Positioning Strength:**", eval_data.get("positioning_strength"))
                             st.write("**Visual Branding Potential:**", eval_data.get("visual_branding_potential"))
@@ -1486,7 +1486,7 @@ def render_thread_data(thread_data):
                                 st.write("**Social Media Discoverability:**", brand_analysis.get("social_media_discoverability"))
                                 st.write("**Name Length Searchability:**", brand_analysis.get("name_length_searchability"))
                                 st.write("**Unusual Spelling Impact:**", brand_analysis.get("unusual_spelling_impact"))
-                                st.metric("SEO Viability Score", brand_analysis.get("seo_viability_score"))
+                                st.write("**SEO Viability Score:**", brand_analysis.get("seo_viability_score"))
                             
                             # Create detail tabs
                             detail_tabs = st.tabs([
@@ -1540,7 +1540,7 @@ def render_thread_data(thread_data):
                                 st.write("**Social Media Discoverability:**", analysis.get("social_media_discoverability"))
                                 st.write("**Name Length Searchability:**", analysis.get("name_length_searchability"))
                                 st.write("**Unusual Spelling Impact:**", analysis.get("unusual_spelling_impact"))
-                                st.metric("SEO Viability Score", analysis.get("seo_viability_score"))
+                                st.write("**SEO Viability Score:**", analysis.get("seo_viability_score"))
                             
                             # Create detail tabs
                             detail_tabs = st.tabs([
@@ -1633,8 +1633,8 @@ def render_thread_data(thread_data):
                                     col1, col2, col3 = st.columns(3)
                                     
                                     with col1:
-                                        st.metric("Risk of Confusion", competitor.get("risk_of_confusion", 0))
-                                        st.metric("Differentiation Score", competitor.get("differentiation_score", 0))
+                                        st.write("**Risk of Confusion:**", competitor.get("risk_of_confusion", 0))
+                                        st.write("**Differentiation Score:**", competitor.get("differentiation_score", 0))
                                     
                                     with col2:
                                         st.write("**Competitor Name:**", competitor.get("competitor_name", ""))
