@@ -717,9 +717,10 @@ def display_results(generated_names, evaluations, container):
                                         st.markdown("#### Analysis")
                                         st.write(evaluations[name].get("analysis", "No analysis available"))
                                     with col2:
-                                        chart = create_radar_chart(evaluations[name])
-                                        if chart:
-                                            st.altair_chart(chart)
+                                        st.write("**Metrics:**")
+                                        for key, value in evaluations[name].items():
+                                            if key != "analysis" and value:
+                                                st.write(f"**{key.replace('_', ' ').title()}:** {value}")
                             
                             # Display linguistic analysis if available
                             if isinstance(name_data, dict):
@@ -1145,73 +1146,154 @@ def render_thread_data(thread_data):
         "Translation Analysis",
         "Domain Analysis",
         "Research",
-        "Dowloadable Report"
+        "Downloadable Report"
     ])
 
     def _render_translation_analysis(analysis):
         """Helper function to render translation analysis consistently"""
-        cols = st.columns(2)
-        with cols[0]:
-            st.write("**Direct Translation:**", analysis.get("direct_translation", ""))
-            st.write("**Semantic Shift:**", analysis.get("semantic_shift", ""))
-            st.write("**Pronunciation Difficulty:**", analysis.get("pronunciation_difficulty", ""))
-            st.write("**Phonetic Retention:**", analysis.get("phonetic_retention", ""))
+        # Create tabs for different aspects of translation analysis
+        translation_tabs = st.tabs([
+            "Translation Overview",
+            "Cultural Impact",
+            "Adaptation Details",
+            "Additional Notes"
+        ])
+        
+        # Translation Overview tab
+        with translation_tabs[0]:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("**Direct Translation:**", analysis.get("direct_translation", ""))
+                st.write("**Semantic Shift:**", analysis.get("semantic_shift", ""))
+                st.write("**Pronunciation Difficulty:**", analysis.get("pronunciation_difficulty", ""))
+            with col2:
+                st.write("**Phonetic Retention:**", analysis.get("phonetic_retention", ""))
+                st.write("**Brand Essence Preserved:**", analysis.get("brand_essence_preserved", ""))
+                if analysis.get("rank"):
+                    st.write("**Translation Viability Score:**", analysis.get("rank"))
+        
+        # Cultural Impact tab
+        with translation_tabs[1]:
             st.write("**Cultural Acceptability:**", analysis.get("cultural_acceptability", ""))
-            st.write("**Brand Essence Preserved:**", analysis.get("brand_essence_preserved", ""))
-        with cols[1]:
             st.write("**Global vs Local Balance:**", analysis.get("global_consistency_vs_localization", ""))
+            if analysis.get("phonetic_similarity_undesirable"):
+                st.warning("⚠️ Potential undesirable phonetic similarity detected")
+        
+        # Adaptation Details tab
+        with translation_tabs[2]:
             st.write("**Adaptation Needed:**", "Yes" if analysis.get("adaptation_needed") else "No")
             if analysis.get("adaptation_needed"):
                 st.write("**Proposed Adaptation:**", analysis.get("proposed_adaptation", ""))
-            if analysis.get("phonetic_similarity_undesirable"):
-                st.warning("⚠️ Potential undesirable phonetic similarity detected")
-            if analysis.get("rank"):
-                st.write("**Translation Viability Score:**", analysis.get("rank"))
         
-        # Additional Notes
-        if analysis.get("notes"):
-            st.write("**Additional Notes:**", analysis.get("notes"))
-        st.divider()
+        # Additional Notes tab
+        with translation_tabs[3]:
+            if analysis.get("pronunciation_guide"):
+                st.write("**Pronunciation Guide:**", analysis.get("pronunciation_guide"))
+            
+            if analysis.get("technical_considerations"):
+                st.write(analysis.get("technical_considerations"))
+            
+            if analysis.get("phonetic_analysis"):
+                st.write(analysis.get("phonetic_analysis"))
+            
+            if analysis.get("notes"):
+                st.write(analysis.get("notes"))
 
     # 1. Brand Context
     with tabs[0]:
         st.markdown("**Detailed Brand Identity Results**")
+        st.write("*The following sections provide a comprehensive overview of the brand context, including core identity, brand voice, market position, and industry context. All of this information was extracted and generated based on the single prompt provided by the user.*")
         brand_context = {}
         
-        # Extract brand context fields
-        context_fields = [
-            ("Brand Identity Brief", "brand_identity_brief"),
-            ("Brand Promise", "brand_promise"),
-            ("Brand Values", "brand_values"),
-            ("Brand Personality", "brand_personality"),
-            ("Brand Tone of Voice", "brand_tone_of_voice"),
-            ("Brand Purpose", "brand_purpose"),
-            ("Brand Mission", "brand_mission"),
-            ("Target Audience", "target_audience"),
-            ("Customer Needs", "customer_needs"),
-            ("Market Positioning", "market_positioning"),
-            ("Competitive Landscape", "competitive_landscape"),
-            ("Industry Focus", "industry_focus"),
-            ("Industry Trends", "industry_trends")
-        ]
+        # Create tabs for different aspects of brand context
+        context_tabs = st.tabs([
+            "Core Identity",
+            "Brand Voice",
+            "Market Position",
+            "Industry Context"
+        ])
         
-        # Populate brand_context dictionary
-        for display_name, field_name in context_fields:
-            value = find_value_in_data(thread_data, [field_name])
-            if value:
-                with st.expander(display_name, expanded=True):
-                    if isinstance(value, str):
-                        st.write(value)
-                    elif isinstance(value, list):
-                        for item in value:
-                            st.write(f"- {item}")
-                    elif isinstance(value, dict):
-                        _render_analysis_section(value, display_name.lower())
+        # Core Identity tab
+        with context_tabs[0]:
+            for field in [
+                ("Brand Identity Brief", "brand_identity_brief"),
+                ("Brand Promise", "brand_promise"),
+                ("Brand Values", "brand_values"),
+                ("Brand Purpose", "brand_purpose"),
+                ("Brand Mission", "brand_mission")
+            ]:
+                display_name, field_name = field
+                value = find_value_in_data(thread_data, [field_name])
+                if value:
+                    with st.expander(display_name, expanded=True):
+                        if isinstance(value, str):
+                            st.write(value)
+                        elif isinstance(value, list):
+                            for item in value:
+                                st.write(f"- {item}")
+                        elif isinstance(value, dict):
+                            _render_analysis_section(value, display_name.lower())
         
+        # Brand Voice tab
+        with context_tabs[1]:
+            for field in [
+                ("Brand Personality", "brand_personality"),
+                ("Brand Tone of Voice", "brand_tone_of_voice")
+            ]:
+                display_name, field_name = field
+                value = find_value_in_data(thread_data, [field_name])
+                if value:
+                    with st.expander(display_name, expanded=True):
+                        if isinstance(value, str):
+                            st.write(value)
+                        elif isinstance(value, list):
+                            for item in value:
+                                st.write(f"- {item}")
+                        elif isinstance(value, dict):
+                            _render_analysis_section(value, display_name.lower())
+        
+        # Market Position tab
+        with context_tabs[2]:
+            for field in [
+                ("Target Audience", "target_audience"),
+                ("Customer Needs", "customer_needs"),
+                ("Market Positioning", "market_positioning"),
+                ("Competitive Landscape", "competitive_landscape")
+            ]:
+                display_name, field_name = field
+                value = find_value_in_data(thread_data, [field_name])
+                if value:
+                    with st.expander(display_name, expanded=True):
+                        if isinstance(value, str):
+                            st.write(value)
+                        elif isinstance(value, list):
+                            for item in value:
+                                st.write(f"- {item}")
+                        elif isinstance(value, dict):
+                            _render_analysis_section(value, display_name.lower())
+        
+        # Industry Context tab
+        with context_tabs[3]:
+            for field in [
+                ("Industry Focus", "industry_focus"),
+                ("Industry Trends", "industry_trends")
+            ]:
+                display_name, field_name = field
+                value = find_value_in_data(thread_data, [field_name])
+                if value:
+                    with st.expander(display_name, expanded=True):
+                        if isinstance(value, str):
+                            st.write(value)
+                        elif isinstance(value, list):
+                            for item in value:
+                                st.write(f"- {item}")
+                        elif isinstance(value, dict):
+                            _render_analysis_section(value, display_name.lower())
     
     # 2. Name Generation
     with tabs[1]:
         st.markdown("**Preliminary Brand Name Generation Results**")
+        st.write("*The following brand names were generated using Alina Wheeler's brand name methodology based on the context provided within the generated Brand Context results.*")
         generated_names = find_value_in_data(thread_data, ["generated_names"])
         
         if generated_names:
@@ -1236,34 +1318,43 @@ def render_thread_data(thread_data):
                 brand_name = name_data.get("brand_name", "") or name_data.get("name", "")
                 if brand_name:
                     with st.expander(f"{brand_name}", expanded=True):
-                        col1, col2 = st.columns(2)
+                        # Create tabs for different aspects of the name
+                        name_tabs = st.tabs([
+                            "Core Details",
+                            "Brand Alignment",
+                            "Methodology"
+                        ])
                         
-                        with col1:
-                            st.write("**Name Details**")
-                            metrics = {
-                                "Rank": rank if rank != 999 else None,
-                                "Category": name_data.get("naming_category", ""),
-                                "Brand Personality Alignment": name_data.get("brand_personality_alignment", ""),
-                                "Brand Promise Alignment": name_data.get("brand_promise_alignment", ""),
-                                "Target Audience Relevance": name_data.get("target_audience_relevance", ""),
-                                "Market Differentiation": name_data.get("market_differentiation", "")
-                            }
-                            
-                            for metric, value in metrics.items():
-                                if value:
-                                    st.write(f"**{metric}:** {value}")
+                        # Core Details tab
+                        with name_tabs[0]:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if rank != 999:
+                                    st.write("**Rank:**", rank)
+                                st.write("**Category:**", name_data.get("naming_category", ""))
+                            with col2:
+                                st.write("**Market Differentiation:**", name_data.get("market_differentiation", ""))
+                                st.write("**Target Audience Relevance:**", name_data.get("target_audience_relevance", ""))
                         
-                        with col2:
-                            st.write("**Rationale**")
+                        # Brand Alignment tab
+                        with name_tabs[1]:
+                            st.write("**Brand Personality Alignment:**", name_data.get("brand_personality_alignment", ""))
+                            st.write("**Brand Promise Alignment:**", name_data.get("brand_promise_alignment", ""))
+                        
+                        # Methodology tab
+                        with name_tabs[2]:
                             rationale = name_data.get("rationale", "") or name_data.get("name_generation_methodology", "")
                             if rationale:
                                 st.write(rationale)
+                            else:
+                                st.info("No rationale provided")
         else:
             st.info("No generated names found in the thread data.")
     
     # 3. Pre Analyses with child tabs
     with tabs[2]:
         st.markdown("**Generated Brand Name Analysis**")
+        st.write("*Each brand name is analyzed for linguistic, semantic, and cultural sensitivity*")
         pre_analysis_tabs = st.tabs(["Linguistic Analysis", "Semantic Analysis", "Cultural Sensitivity"])
         
         # Linguistic Analysis
@@ -1350,34 +1441,57 @@ def render_thread_data(thread_data):
     # 4. Name Evaluation
     with tabs[3]:
         st.markdown("**Name Evaluation Results**")
+        st.write("*Name Evaluation Results are based on a comprehensive evaluation of each name against the brand context, semantic, cultural, and linguistic analyses*")
         evaluation_results = find_value_in_data(thread_data, ["evaluation_results"])
         if evaluation_results:
             if isinstance(evaluation_results, dict):
-                for name, eval_data in evaluation_results.items():
+                # Sort evaluations to show shortlisted names first
+                sorted_evaluations = sorted(
+                    evaluation_results.items(),
+                    key=lambda x: (x[1].get("shortlist_status") != "Yes", x[0])  # Sort by shortlist status first, then name
+                )
+                
+                for name, eval_data in sorted_evaluations:
                     with st.expander(f"Evaluation for: {name}", expanded=True):
-                        cols = st.columns(3)
-                        with cols[0]:
-                            st.write("**Overall Score:**", eval_data.get("overall_score"))
+                        # Show shortlist status first
+                        if eval_data.get("shortlist_status") == "Yes":
+                            st.success("✅ Selected for shortlist")
+                        
+                        # Create tabs for different aspects of evaluation
+                        eval_tabs = st.tabs([
+                            "Core Metrics",
+                            "Brand Alignment",
+                            "Evaluation Details"
+                        ])
+                        
+                        # Core Metrics tab
+                        with eval_tabs[0]:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.write("**Overall Score:**", eval_data.get("overall_score"))
+                                st.write("**Memorability:**", eval_data.get("memorability_score"))
+                                st.write("**Pronounceability:**", eval_data.get("pronounceability_score"))
+                            with col2:
+                                st.write("**Domain Viability:**", eval_data.get("domain_viability_score"))
+                                st.write("**Positioning Strength:**", eval_data.get("positioning_strength"))
+                        
+                        # Brand Alignment tab
+                        with eval_tabs[1]:
                             st.write("**Brand Fit:**", eval_data.get("brand_fit_score"))
                             st.write("**Strategic Alignment:**", eval_data.get("strategic_alignment_score"))
-                        with cols[1]:
-                            st.write("**Memorability:**", eval_data.get("memorability_score"))
-                            st.write("**Pronounceability:**", eval_data.get("pronounceability_score"))
-                            st.write("**Domain Viability:**", eval_data.get("domain_viability_score"))
-                        with cols[2]:
-                            st.write("**Positioning Strength:**", eval_data.get("positioning_strength"))
                             st.write("**Visual Branding Potential:**", eval_data.get("visual_branding_potential"))
                             st.write("**Storytelling Potential:**", eval_data.get("storytelling_potential"))
                         
-                        st.write("**Evaluation Comments:**", eval_data.get("evaluation_comments"))
-                        if eval_data.get("shortlist_status") == "Yes":
-                            st.success("✅ Selected for shortlist")
+                        # Evaluation Details tab
+                        with eval_tabs[2]:
+                            st.write("**Evaluation Comments:**", eval_data.get("evaluation_comments"))
         else:
             st.info("No evaluation results found.")
     
     # 5. Translation Analysis (now a parent tab)
     with tabs[4]:
         st.markdown("**Translation Analysis Results**")
+        st.write("*Shotlisted Brand Names are translated against the top six (6) global languages to ensure global market accessibility*")
         translation_analysis = find_value_in_data(thread_data, ["translation_analysis_results"])
         if translation_analysis:
             # Handle both list and dictionary formats
@@ -1412,6 +1526,7 @@ def render_thread_data(thread_data):
     # 6. Domain Analysis (now a parent tab)
     with tabs[5]:
         st.markdown("**Domain Analysis Results**")
+        st.write("*Shortlisted Brand Names are analyzed for domain availability and social media potential*")
         domain_analysis = find_value_in_data(thread_data, ["domain_analysis_results"])
         if domain_analysis:
             if isinstance(domain_analysis, dict):
@@ -1432,6 +1547,7 @@ def render_thread_data(thread_data):
     # 7. Research with child tabs
     with tabs[6]:
         st.markdown("**Market Research**")
+        st.write("*In depth market research is conducted to understand the market size, growth rate, customer needs, SEO potential, and competitive landscape. Along with this research a survey is conducted, utilizing synthetic persona data, to understand the customer preferences.*")
         research_tabs = st.tabs([
             "Market Research",
             "SEO Analysis",
@@ -1719,6 +1835,33 @@ def render_thread_data(thread_data):
                     # Convert KB to MB with one decimal place
                     file_size_mb = round(float(file_size_kb) / 1024, 1)
                     st.caption(f"Size: {file_size_mb} MB")
+
+    # 5. Downloadable Report
+    with tabs[4]:
+        st.markdown("**Available Reports**")
+        
+        reports = find_value_in_data(thread_data, ["reports"])
+        if reports and isinstance(reports, list):
+            for report in reports:
+                if isinstance(report, dict):
+                    with st.container():
+                        cols = st.columns([4, 1])
+                        with cols[0]:
+                            st.markdown(f"#### {report.get('name', 'Report')}")
+                            if report.get('size'):
+                                st.caption(f"{report.get('size')} KB")
+                        with cols[1]:
+                            if report.get('content'):
+                                st.download_button(
+                                    "📥 Download",
+                                    report['content'],
+                                    file_name=report.get('name', 'report.txt'),
+                                    mime='text/plain',
+                                    use_container_width=True,
+                                )
+                    st.divider()
+        else:
+            st.info("No reports available for download.")
 
 def _render_market_research(analysis):
     """
@@ -2309,9 +2452,10 @@ with tab1:
                                     st.markdown("#### Analysis")
                                     st.write(evaluations[name].get("analysis", "No analysis available"))
                                 with col2:
-                                    chart = create_radar_chart(evaluations[name])
-                                    if chart:
-                                        st.altair_chart(chart)
+                                    st.write("**Metrics:**")
+                                    for key, value in evaluations[name].items():
+                                        if key != "analysis" and value:
+                                            st.write(f"**{key.replace('_', ' ').title()}:** {value}")
                         st.markdown("---")
                 else:
                     st.warning("No names were generated. Please check the debug information below.")
