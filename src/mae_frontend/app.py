@@ -342,10 +342,154 @@ def remove_from_favorites(name):
         return True
     return False
 
+def process_raw_stream_json(raw_data):
+    """Extract and merge new data without duplication"""
+    # Initialize latest_data if not already in session state
+    if "latest_data" not in st.session_state:
+        st.session_state.latest_data = {}
+    
+    # Initialize displayed sections if not already in session state
+    if "displayed_sections" not in st.session_state:
+        st.session_state.displayed_sections = set()
+    
+    # Start with current state
+    result = st.session_state.latest_data.copy()
+    
+    # Update with new data
+    for key, value in raw_data.items():
+        # Skip system keys or empty values
+        if key.startswith("_") or not value:
+            continue
+            
+        # Special handling for generated_names to avoid duplication
+        if key == "generated_names" and key in result:
+            # Only add new names not already in the list
+            existing_names = {str(name) if not isinstance(name, dict) 
+                             else name.get("brand_name", "") 
+                             for name in result[key]}
+            
+            for name in value:
+                name_key = str(name) if not isinstance(name, dict) else name.get("brand_name", "")
+                if name_key and name_key not in existing_names:
+                    result[key].append(name)
+        else:
+            # For other fields, just update with latest value
+            result[key] = value
+    
+    # Store the updated state
+    st.session_state.latest_data = result
+    return result
+
+def display_structured_results(data, container):
+    """Display structured results with tabs for different sections"""
+    # Determine which sections are available in the data
+    has_brand_context = any(k in data for k in [
+        "brand_identity_brief", "brand_promise", "brand_values", 
+        "brand_purpose", "brand_mission", "brand_personality",
+        "brand_tone_of_voice"
+    ])
+    
+    has_names = "generated_names" in data and data["generated_names"]
+    has_analysis = any(k in data for k in [
+        "linguistic_analysis_results", "semantic_analysis_results",
+        "cultural_analysis_results", "evaluation_results"
+    ])
+    
+    # Create list of available tabs
+    available_tabs = []
+    if has_brand_context:
+        available_tabs.append("Brand Context")
+    if has_names:
+        available_tabs.append("Generated Names")
+    if has_analysis:
+        available_tabs.append("Analysis")
+    
+    # Only proceed if we have tabs to show
+    if not available_tabs:
+        container.info("Processing data... no results available yet.")
+        return
+    
+    # Create tabs and display content
+    tabs = container.tabs(available_tabs)
+    
+    # Fill tab content
+    tab_index = 0
+    
+    # Brand Context tab
+    if has_brand_context:
+        with tabs[tab_index]:
+            st.subheader("Brand Identity")
+            
+            # Display brand context fields
+            for field, title in [
+                ("brand_identity_brief", "Brand Identity Brief"),
+                ("brand_promise", "Brand Promise"),
+                ("brand_values", "Brand Values"),
+                ("brand_purpose", "Brand Purpose"),
+                ("brand_mission", "Brand Mission"),
+                ("brand_personality", "Brand Personality"),
+                ("brand_tone_of_voice", "Tone of Voice")
+            ]:
+                if field in data and data[field]:
+                    st.write(f"**{title}:**")
+                    if isinstance(data[field], list):
+                        for item in data[field]:
+                            st.write(f"- {item}")
+                    else:
+                        st.write(data[field])
+                    st.markdown("---")
+        tab_index += 1
+    
+    # Generated Names tab
+    if has_names:
+        with tabs[tab_index]:
+            st.subheader("Generated Brand Names")
+            
+            # Display each name
+            for name in data["generated_names"]:
+                if isinstance(name, dict):
+                    name_text = name.get("brand_name", "") or name.get("name", "")
+                    if name_text:
+                        with st.expander(name_text, expanded=True):
+                            # Show additional info if available
+                            if "naming_category" in name:
+                                st.write(f"**Category:** {name['naming_category']}")
+                            if "rationale" in name:
+                                st.write(f"**Rationale:** {name['rationale']}")
+                            elif "name_generation_methodology" in name:
+                                st.write(f"**Methodology:** {name['name_generation_methodology']}")
+                else:
+                    st.markdown(f"### {name}")
+        tab_index += 1
+    
+    # Analysis tab
+    if has_analysis:
+        with tabs[tab_index]:
+            st.subheader("Name Analysis")
+            
+            # Display analysis results
+            analysis_types = {
+                "linguistic_analysis_results": "Linguistic Analysis",
+                "semantic_analysis_results": "Semantic Analysis",
+                "cultural_analysis_results": "Cultural Analysis",
+                "evaluation_results": "Evaluation Results"
+            }
+            
+            for key, title in analysis_types.items():
+                if key in data and data[key]:
+                    st.write(f"**{title}:**")
+                    st.json(data[key])
+                    st.markdown("---")
+        tab_index += 1
+
 def process_stream_data(stream, container, status_container, progress_bar):
     """Process streaming data from the API"""
     generated_names = []
     evaluations = {}
+    
+    # Reset latest data and displayed sections for a fresh run
+    st.session_state.latest_data = {}
+    st.session_state.displayed_sections = set()
     
     # Track run metrics
     token_counts = {"total": 0, "prompt": 0, "completion": 0}
@@ -373,7 +517,6 @@ def process_stream_data(stream, container, status_container, progress_bar):
     
     # Create separate containers for different types of information
     steps_container = status_container.container()
-    debug_container = st.container()  # Container for debug information
     
     # Initialize debug data list in session state if not already there
     if "raw_debug_data" not in st.session_state:
@@ -388,34 +531,12 @@ def process_stream_data(stream, container, status_container, progress_bar):
     else:
         st.session_state.raw_stream_lines = []
     
-    # Create a container for raw data display
-    raw_json_container = debug_container.container()
-    raw_json_display = raw_json_container.empty()
-    
     # Set up counters and trackers
     line_count = 0
-    langgraph_data = {
-        "nodes_visited": set(),
-        "node_data": {},
-        "triggers": set(),
-        "run_id": "",
-        "thread_id": ""
-    }
     
-    # Update display function for raw JSON
-    def update_raw_json_display():
-        if not st.session_state.raw_debug_data:
-            raw_json_display.info("Waiting for data...")
-            return
-            
-        # Show the count of events received
-        raw_json_display.markdown(f"### Raw Stream Data ({len(st.session_state.raw_debug_data)} events)")
-        
-        # Display the last 10 events as pretty JSON
-        with raw_json_display.expander("Latest Events", expanded=True):
-            for i, event in enumerate(st.session_state.raw_debug_data[-10:]):
-                st.markdown(f"**Event {len(st.session_state.raw_debug_data) - 10 + i + 1}:**")
-                st.json(event)
+    # Clear the results container initially
+    container.empty()
+    results_display = container.container()
     
     # Process stream data
     for line in stream:
@@ -473,9 +594,6 @@ def process_stream_data(stream, container, status_container, progress_bar):
             # Store raw data for debugging
             st.session_state.raw_debug_data.append(data)
             print(f"DEBUG: Received data: {data.get('type', 'unknown')}")
-            
-            # Update the raw JSON display
-            update_raw_json_display()
         except json.JSONDecodeError as json_err:
             # Log the error and the problematic data
             print(f"Error parsing JSON: {str(json_err)}")
@@ -493,21 +611,7 @@ def process_stream_data(stream, container, status_container, progress_bar):
                 event_type = data.get("type", "unknown")
                 metadata = data.get("metadata", {}) if isinstance(data, dict) else {}
                 
-                # Log more details for unknown data types
-                if event_type == "unknown":
-                    print(f"DEBUG: Unknown data type received. Keys: {list(data.keys())}")
-                    
-                    # Try to identify if this is thread data
-                    if "thread_id" in data or "id" in data:
-                        print(f"DEBUG: This appears to be thread data")
-                        # Store it so it can be processed
-                        thread_data = data
-                        # Don't return unknown, continue processing
-                    else:
-                        # Continue trying to process it like other data types
-                        pass
-                
-                # Handle status message (keep this simple)
+                # Handle status message
                 if event_type == "status" and "message" in data:
                     status_message.info(data["message"])
                     
@@ -520,42 +624,38 @@ def process_stream_data(stream, container, status_container, progress_bar):
                         current_node = metadata["langgraph_node"]
                         current_step_display.info(f"Processing node: {current_node}")
                 
-                # Check for result data - multiple possible locations
-                result = None
-                for key in ["data", "output", "result"]:
-                    if key in data:
-                        result = data[key]
-                        break
+                # Process structured data - check multiple possible locations
+                structured_data = None
                 
-                # If result contains generated names, display them
-                if isinstance(result, dict) and "generated_names" in result:
-                    names = result["generated_names"]
-                    if names:
-                        generated_names = names
-                        evaluations = result.get("evaluations", {})
-                        display_results(generated_names, evaluations, container)
+                # Try to extract structured data from various possible locations
+                if "data" in data and isinstance(data["data"], dict):
+                    structured_data = data["data"]
+                elif "result" in data and isinstance(data["result"], dict):
+                    structured_data = data["result"]
+                elif "output" in data and isinstance(data["output"], dict):
+                    structured_data = data["output"]
+                elif event_type == "unknown":
+                    # For unknown types, check if this is direct state data
+                    # by looking for key fields that would indicate state data
+                    state_data_indicators = ["generated_names", "brand_identity_brief", "brand_promise"]
+                    if any(indicator in data for indicator in state_data_indicators):
+                        structured_data = data
                 
-                # Also check if names are in the top-level data
-                elif isinstance(data, dict) and "generated_names" in data:
-                    names = data["generated_names"]
-                    if names:
-                        generated_names = names
-                        evaluations = data.get("evaluations", {})
-                        display_results(generated_names, evaluations, container)
-                
-                # Try to parse if it's a string that might contain the results
-                elif isinstance(result, str):
-                    try:
-                        parsed = json.loads(result)
-                        if isinstance(parsed, dict) and "generated_names" in parsed:
-                            names = parsed["generated_names"]
-                            if names:
-                                generated_names = names
-                                evaluations = parsed.get("evaluations", {})
-                                display_results(generated_names, evaluations, container)
-                    except:
-                        # Not JSON or doesn't contain what we're looking for
-                        pass
+                # If we found structured data, process and display it
+                if structured_data:
+                    # Process raw stream data to avoid duplication
+                    processed_data = process_raw_stream_json(structured_data)
+                    
+                    # Extract names for return value
+                    if "generated_names" in processed_data:
+                        generated_names = processed_data["generated_names"]
+                    
+                    # Extract evaluations for return value
+                    if "evaluation_results" in processed_data:
+                        evaluations = processed_data["evaluation_results"]
+                    
+                    # Display the updated structured results
+                    display_structured_results(processed_data, results_display)
             except Exception as e:
                 # Log any errors in processing
                 print(f"Error processing data: {str(e)}")
@@ -573,172 +673,20 @@ def process_stream_data(stream, container, status_container, progress_bar):
     # Mark completion in session state
     st.session_state.generation_complete = True
     
-    # Display final raw JSON state
-    with debug_container:
-        st.markdown("---")
-        st.subheader("LangGraph Execution Flow")
-        st.caption("This section shows the raw data received from the stream.")
-        
-        # First, show the raw stream output
-        with st.expander("Raw Stream Data (before JSON parsing)", expanded=True):
-            st.info(f"Received {len(st.session_state.raw_stream_lines)} lines from stream")
-            if st.session_state.raw_stream_lines:
-                for i, line in enumerate(st.session_state.raw_stream_lines[:20]):  # Limit to first 20 lines
-                    st.text(f"Line {i+1}: {line}")
-                if len(st.session_state.raw_stream_lines) > 20:
-                    st.text(f"... and {len(st.session_state.raw_stream_lines) - 20} more lines")
-            else:
-                st.warning("No raw stream data captured")
-        
-        if st.session_state.raw_debug_data:
-            # Display event count
-            st.info(f"Received {len(st.session_state.raw_debug_data)} events from the stream")
-            
-            # Create tabs for different views
-            debug_tabs = st.tabs(["All Events", "Status Events", "Result Data"])
-            
-            # All events tab
-            with debug_tabs[0]:
-                st.markdown("### All Stream Events")
-                for i, event in enumerate(st.session_state.raw_debug_data):
-                    event_type = event.get("type", "unknown")
-                    with st.expander(f"Event {i+1}: {event_type}", expanded=i==0):
-                        st.json(event)
-            
-            # Status events tab
-            with debug_tabs[1]:
-                st.markdown("### Status Events")
-                status_events = [e for e in st.session_state.raw_debug_data if e.get("type") == "status"]
-                if status_events:
-                    for i, event in enumerate(status_events):
-                        message = event.get("message", "No message")
-                        metadata = event.get("metadata", {})
-                        node = metadata.get("langgraph_node", "Unknown")
-                        step = metadata.get("langgraph_step", "?")
-                        with st.expander(f"Step {step}: {node} - {message}", expanded=i==0):
-                            st.json(event)
-                else:
-                    st.warning("No status events found")
-            
-            # Result data tab
-            with debug_tabs[2]:
-                st.markdown("### Result Data")
-                result_events = [
-                    e for e in st.session_state.raw_debug_data 
-                    if e.get("type") in ["output", "result"] or "generated_names" in str(e)
-                ]
-                if result_events:
-                    for i, event in enumerate(result_events):
-                        with st.expander(f"Result {i+1}", expanded=i==0):
-                            st.json(event)
-                else:
-                    st.warning("No result events found")
-        else:
-            st.warning("No debug data captured from the stream")
-    
     return generated_names, evaluations
 
 def display_results(generated_names, evaluations, container):
-    """Helper function to display generated names and evaluations"""
-    logging.debug(f"In display_results with {len(generated_names) if generated_names else 0} names")
-    
-    with container:
-        st.empty().markdown("## Generated Names")
+    """
+    Legacy function for displaying results.
+    Now just a wrapper around display_structured_results.
+    """
+    data = {
+        "generated_names": generated_names
+    }
+    if evaluations:
+        data["evaluation_results"] = evaluations
         
-        if generated_names:
-            logging.debug(f"Displaying names: {generated_names}")
-            
-            # Create 2 columns per row for better space utilization
-            for i in range(0, len(generated_names), 2):
-                cols = st.columns(2)
-                
-                # Process names for this row
-                for j in range(2):
-                    idx = i + j
-                    if idx < len(generated_names):
-                        name_data = generated_names[idx]
-                        
-                        # Extract the name string if it's a dictionary object
-                        if isinstance(name_data, dict):
-                            name = name_data.get("brand_name", "")
-                            analysis_data = name_data
-                        else:
-                            name = str(name_data)
-                            analysis_data = None
-                        
-                        if not name:  # Skip empty names
-                            continue
-                            
-                        with cols[j]:
-                            # Display name heading
-                            st.markdown(f"### {name}")
-                            
-                            # Add category as caption if available
-                            if isinstance(name_data, dict) and "naming_category" in name_data:
-                                st.caption(f"Category: {name_data['naming_category']}")
-                            elif isinstance(name_data, dict) and "rank" in name_data:
-                                st.caption(f"Rank: {name_data['rank']}/10")
-                            
-                            # Display metrics if available
-                            metrics = {}
-                            if analysis_data:
-                                metric_keys = [
-                                    "pronounceability_score", "memorability_score", 
-                                    "market_differentiation", "target_audience_relevance",
-                                    "rank", "overall_readability_score"
-                                ]
-                                
-                                for key in metric_keys:
-                                    if key in analysis_data and isinstance(analysis_data[key], (int, float)):
-                                        display_key = key.replace("_score", "").replace("_", " ").title()
-                                        metrics[display_key] = analysis_data[key]
-                            
-                            if metrics:
-                                # Display up to 3 metrics per row
-                                metric_cols = st.columns(min(3, len(metrics)))
-                                for k, (metric, value) in enumerate(metrics.items()):
-                                    with metric_cols[k % 3]:
-                                        if isinstance(value, float):
-                                            display_value = f"{value:.1f}/10"
-                                        else:
-                                            display_value = f"{value}/10"
-                                        st.metric(metric, display_value)
-                            
-                            # Display notes if available
-                            if isinstance(name_data, dict) and "notes" in name_data and name_data["notes"]:
-                                with st.expander("Analysis Notes", expanded=False):
-                                    st.info(name_data["notes"])
-                            
-                            # Display additional data if available in evaluations
-                            if name in evaluations:
-                                with st.expander("View Detailed Analysis"):
-                                    col1, col2 = st.columns([3, 2])
-                                    with col1:
-                                        st.markdown("#### Analysis")
-                                        st.write(evaluations[name].get("analysis", "No analysis available"))
-                                    with col2:
-                                        st.write("**Metrics:**")
-                                        for key, value in evaluations[name].items():
-                                            if key != "analysis" and value:
-                                                st.write(f"**{key.replace('_', ' ').title()}:** {value}")
-                            
-                            # Display linguistic analysis if available
-                            if isinstance(name_data, dict):
-                                linguistic_data = {}
-                                for key in ["word_class", "sound_symbolism", "rhythm_and_meter", 
-                                           "pronunciation_ease", "euphony_vs_cacophony"]:
-                                    if key in name_data and name_data[key]:
-                                        linguistic_data[key] = name_data[key]
-                                
-                                if linguistic_data:
-                                    with st.expander("Linguistic Details", expanded=False):
-                                        for key, value in linguistic_data.items():
-                                            st.markdown(f"**{key.replace('_', ' ').title()}**: {value}")
-                            
-                            st.markdown("---")
-        else:
-            logging.debug("No names to display")
-            st.info("No brand names generated yet. Run a brand naming workflow to see results.")
+    display_structured_results(data, container)
 
 def display_run_details(thread_id, run_id):
     """Display detailed information about a run in a structured way"""
@@ -950,7 +898,7 @@ def _render_survey_persona(persona):
     
     # Brand Perception tab
     with persona_tabs[2]:
-        st.markdown("#### Brand Perception Scores")
+        st.write("**Brand Perception Scores**")
         score_cols = st.columns(3)
         scores = {
             "Personality Fit": persona.get("personality_fit_score"),
@@ -963,11 +911,11 @@ def _render_survey_persona(persona):
         for i, (metric, value) in enumerate(scores.items()):
             with score_cols[i % 3]:
                 if value is not None:
-                    st.metric(metric, f"{value}/10")
+                    st.write(f"**{metric}:** {value}/10")
     
     # Decision Making tab
     with persona_tabs[3]:
-        st.markdown("#### Decision Making Profile")
+        st.write("**Decision Making Profile**")
         decision_cols = st.columns(2)
         with decision_cols[0]:
             st.write("**Decision Making Style:**", persona.get("decision_making_style", "N/A"))
@@ -1011,51 +959,33 @@ def _render_survey_persona(persona):
             # Display raw qualitative feedback if available
             raw_feedback = persona.get("raw_qualitative_feedback")
             if raw_feedback:
-                st.markdown("##### Detailed Qualitative Feedback")
-                if isinstance(raw_feedback, dict):
-                    feedback_cols = st.columns(2)
-                    for i, (aspect, feedback) in enumerate(raw_feedback.items()):
-                        with feedback_cols[i % 2]:
-                            st.markdown(f"**{aspect}:**")
-                            st.markdown(feedback)
-                            st.markdown("---")
-                else:
-                    # If raw_feedback is a string, display it directly
+                st.write("##### Detailed Qualitative Feedback")
+                try:
+                    # If it's a string, try to parse it as JSON
+                    if isinstance(raw_feedback, str):
+                        raw_feedback = json.loads(raw_feedback)
+                    
+                    # Now handle the parsed dictionary
+                    if isinstance(raw_feedback, dict):
+                        cols = st.columns(2)
+                        for i, (aspect, feedback) in enumerate(raw_feedback.items()):
+                            with cols[i % 2]:
+                                st.write(f"**{aspect}:**\n\"{feedback}\"")
+                    else:
+                        # If it's not a dictionary after parsing, display directly
+                        st.markdown(raw_feedback)
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, display as raw text
                     st.markdown(raw_feedback)
-            
-            # Motivations and Frustrations
-            motivation_cols = st.columns(2)
-            with motivation_cols[0]:
-                st.write("**Motivations:**", persona.get("motivations", "N/A"))
-            with motivation_cols[1]:
-                st.write("**Frustrations:**", persona.get("frustrations_annoyances", "N/A"))
-        
-        with feedback_subtabs[1]:
-            # Current Brand Relationships
-            brand_relationships = persona.get("current_brand_relationships")
-            if brand_relationships:
-                st.markdown("#### Current Brand Relationships")
-                if isinstance(brand_relationships, dict):
-                    relationship_cols = st.columns(2)
-                    for i, (brand, relationship) in enumerate(brand_relationships.items()):
-                        with relationship_cols[i % 2]:
-                            st.markdown(f"**{brand}:**")
-                            st.markdown(relationship)
-                            st.markdown("---")
-                else:
-                    # If it's a string, display directly
-                    st.markdown(brand_relationships)
         
         with feedback_subtabs[2]:
-            st.markdown("#### Additional Demographics")
             st.write("**Generation/Age Range:**", persona.get("generation_age_range", "N/A"))
             st.write("**Persona Archetype:**", persona.get("persona_archetype_type", "N/A"))
     
     # Final Recommendation (outside tabs, always visible)
-    st.markdown("#### Final Recommendation")
+    st.write("**Final Recommendation**")
     st.write(persona.get("final_survey_recommendation", "No recommendation provided"))
     
-    st.markdown("---")  # Visual separator between personas
 
 def _render_domain_analysis(analysis):
     """
@@ -2077,7 +2007,7 @@ tab1, tab2 = st.tabs(["Generator", "History"])
 with tab1:
     # Message area
     if not user_input.strip():
-        st.info("👈 Enter your brand requirements in the sidebar to get started.")
+        st.info("Enter your brand requirements in the sidebar to get started.")
     
     # Results area - modify the order and structure
     main_content = st.container()
@@ -2104,140 +2034,77 @@ with tab1:
     debug_container = st.container()
     with debug_container:
         if "generation_complete" in st.session_state and st.session_state.generation_complete:
-            if "langsmith_trace_ids" in st.session_state and st.session_state.langsmith_trace_ids:
-                st.subheader("LangSmith Traces")
-                for trace_id in st.session_state.langsmith_trace_ids:
-                    # Create LangSmith trace URL
-                    langsmith_url = f"https://smith.langchain.com/api/traces/{trace_id}"
-                    st.markdown(f"[View detailed trace on LangSmith]({langsmith_url})")
-                
-                st.info("LangSmith traces provide the most detailed view of your flow's execution. Click the links above to view in the LangSmith UI.")
-            
             if "raw_debug_data" in st.session_state and len(st.session_state.raw_debug_data) > 0:
                 st.write(f"Debug data available: {len(st.session_state.raw_debug_data)} events")
                 
-                # Display LangSmith trace IDs if available
-                if "langsmith_trace_ids" in st.session_state and st.session_state.langsmith_trace_ids:
-                    st.subheader("LangSmith Traces")
-                    valid_traces = []
-                    
-                    for trace_id in st.session_state.langsmith_trace_ids:
-                        # Create LangSmith trace URL
-                        langsmith_url = f"https://smith.langchain.com/traces/{trace_id}"
-                        
-                        # Add the trace link
-                        with st.spinner(f"Validating trace {trace_id[:8]}..."):
-                            is_valid = validate_langsmith_trace(trace_id)
-                        
-                        if is_valid:
-                            st.markdown(f"✅ [View detailed trace on LangSmith]({langsmith_url})")
-                            valid_traces.append(trace_id)
-                        else:
-                            st.markdown(f"❌ Trace {trace_id[:8]}... may not be available")
-                    
-                    if valid_traces:
-                        st.info(f"LangSmith traces provide the most detailed view of your flow's execution. {len(valid_traces)} valid trace(s) found.")
-                    else:
-                        st.warning("No valid LangSmith traces were found. This might be due to API limitations or LangSmith configuration.")
-                else:
-                    st.info("No LangSmith traces were captured during execution. This may be due to the LangSmith tracing being disabled in your LangGraph flow.")
-                    
-                    # Offer a manual lookup option
-                    run_id_manual = st.text_input("Enter a run ID manually to check LangSmith:")
-                    if run_id_manual and st.button("Check Trace"):
-                        with st.spinner("Validating trace ID..."):
-                            is_valid = validate_langsmith_trace(run_id_manual)
-                        
-                        if is_valid:
-                            langsmith_url = f"https://smith.langchain.com/traces/{run_id_manual}"
-                            st.success(f"✅ Valid trace found! [View on LangSmith]({langsmith_url})")
-                        else:
-                            st.error("❌ No valid trace found with that ID")
+                # Extract LangGraph-specific events
+                langgraph_events = [
+                    event for event in st.session_state.raw_debug_data 
+                    if (event.get("type") == "status" and 
+                        "metadata" in event and 
+                        "langgraph_node" in event.get("metadata", {}))
+                ]
                 
-                # Continue with the rest of the debug section
-                if len(st.session_state.raw_debug_data) > 0:
-                    # Extract LangGraph-specific events
-                    langgraph_events = [
-                        event for event in st.session_state.raw_debug_data 
-                        if (event.get("type") == "status" and 
-                            "metadata" in event and 
-                            "langgraph_node" in event.get("metadata", {}))
-                    ]
-                    
-                    # Extract streaming deltas and unknown events
-                    delta_events = [
-                        event for event in st.session_state.raw_debug_data
-                        if "delta" in event and isinstance(event["delta"], dict)
-                    ]
-                    
-                    unknown_events = [
-                        event for event in st.session_state.raw_debug_data
-                        if event.get("type", "unknown") == "unknown"
-                    ]
-                    
-                    # Display LangGraph execution events
-                    if langgraph_events:
-                        st.subheader("LangGraph Execution Path")
-                        for i, event in enumerate(langgraph_events):
-                            metadata = event.get("metadata", {})
-                            node_name = metadata.get("langgraph_node", "Unknown")
-                            step = metadata.get("langgraph_step", "?")
-                            
-                            with st.expander(f"Step {step}: {node_name}", expanded=i==0):
-                                # Show additional metadata if available
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    if "ls_model_name" in metadata:
-                                        st.markdown(f"**Model:** {metadata.get('ls_model_name')}")
-                                    if "prompt_tokens" in metadata:
-                                        st.markdown(f"**Tokens:** {metadata.get('prompt_tokens')}")
-                                with col2:
-                                    if "ls_provider" in metadata:
-                                        st.markdown(f"**Provider:** {metadata.get('ls_provider')}")
-                                    if "ls_run_id" in metadata:
-                                        run_id = metadata.get('ls_run_id')
-                                        langsmith_url = f"https://smith.langchain.com/runs/{run_id}"
-                                        st.markdown(f"**Run ID:** [{run_id[:8]}...]({langsmith_url})")
-                    
-                    # Display streaming completion events
-                    if delta_events:
-                        st.subheader("Streaming Completion Events")
-                        for i, event in enumerate(delta_events[:10]):  # Limit to 10 for performance
-                            delta = event.get("delta", {})
-                            content = delta.get("content", "")
-                            if content:
-                                with st.expander(f"Delta {i+1}: {content[:30]}...", expanded=False):
-                                    st.text(content)
-                    
-                    # Display unknown events
-                    if unknown_events:
-                        st.subheader("Unrecognized Event Types")
-                        st.caption("These events don't have a standard type field and may contain important metadata")
+                # Extract streaming deltas and unknown events
+                delta_events = [
+                    event for event in st.session_state.raw_debug_data
+                    if "delta" in event and isinstance(event["delta"], dict)
+                ]
+                
+                unknown_events = [
+                    event for event in st.session_state.raw_debug_data
+                    if event.get("type", "unknown") == "unknown"
+                ]
+                
+                # Display LangGraph execution events
+                if langgraph_events:
+                    st.subheader("LangGraph Execution Path")
+                    for i, event in enumerate(langgraph_events):
+                        metadata = event.get("metadata", {})
+                        node_name = metadata.get("langgraph_node", "Unknown")
+                        step = metadata.get("langgraph_step", "?")
                         
-                        for i, event in enumerate(unknown_events[:5]):  # Limit to 5 for UI clarity
-                            event_keys = list(event.keys())
-                            if "run_id" in event:
-                                title = f"Run Metadata: {event.get('run_id')[:8]}..."
-                            elif "content" in event:
-                                title = f"Content Chunk: {event.get('content')[:20]}..."
-                            else:
-                                title = f"Unknown Event {i+1}: Keys={', '.join(event_keys[:3])}..."
-                            
-                            with st.expander(title, expanded=i==0):
-                                # Attempt to extract useful information
-                                if "run_id" in event:
-                                    st.markdown(f"**Run ID:** {event.get('run_id')}")
-                                    
-                                    # Add LangSmith link if it appears to be a trace ID
-                                    langsmith_url = f"https://smith.langchain.com/traces/{event.get('run_id')}"
-                                    st.markdown(f"[View on LangSmith]({langsmith_url})")
-                                
-                                # Show a formatted version of the event
-                                st.json(event)
+                        with st.expander(f"Step {step}: {node_name}", expanded=i==0):
+                            # Show additional metadata if available
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if "ls_model_name" in metadata:
+                                    st.markdown(f"**Model:** {metadata.get('ls_model_name')}")
+                                if "prompt_tokens" in metadata:
+                                    st.markdown(f"**Tokens:** {metadata.get('prompt_tokens')}")
+                            with col2:
+                                if "ls_provider" in metadata:
+                                    st.markdown(f"**Provider:** {metadata.get('ls_provider')}")
+                
+                # Display streaming completion events
+                if delta_events:
+                    st.subheader("Streaming Completion Events")
+                    for i, event in enumerate(delta_events[:10]):  # Limit to 10 for performance
+                        delta = event.get("delta", {})
+                        content = delta.get("content", "")
+                        if content:
+                            with st.expander(f"Delta {i+1}: {content[:30]}...", expanded=False):
+                                st.text(content)
+                
+                # Display unknown events
+                if unknown_events:
+                    st.subheader("Unrecognized Event Types")
+                    st.caption("These events don't have a standard type field and may contain important metadata")
                     
-                    # Still show raw data for complete visibility
-                    with st.expander("View Raw Event Data", expanded=False):
-                        st.json(st.session_state.raw_debug_data[:10])
+                    for i, event in enumerate(unknown_events[:5]):  # Limit to 5 for UI clarity
+                        event_keys = list(event.keys())
+                        if "content" in event:
+                            title = f"Content Chunk: {event.get('content')[:20]}..."
+                        else:
+                            title = f"Unknown Event {i+1}: Keys={', '.join(event_keys[:3])}..."
+                        
+                        with st.expander(title, expanded=i==0):
+                            # Show a formatted version of the event
+                            st.json(event)
+                
+                # Still show raw data for complete visibility
+                with st.expander("View Raw Event Data", expanded=False):
+                    st.json(st.session_state.raw_debug_data[:10])
 
     # Process generation
     if generate_button:
@@ -2521,7 +2388,7 @@ with tab2:
     if st.button("Refresh History"):
         # Clear the cache to force fresh data fetch
         st.cache_data.clear()
-        st.toast("Refreshing data...", icon="🔄")
+        st.toast("Refreshing data...")
         
         # Refresh the page to ensure all data is updated
         st.rerun()
