@@ -978,6 +978,39 @@ def _render_survey_persona(persona):
                     # If JSON parsing fails, display as raw text
                     st.markdown(raw_feedback)
         
+        with feedback_subtabs[1]:
+            # Display brand relationships if available
+            brand_relationships = persona.get("current_brand_relationships")
+            if brand_relationships:
+                # Handle both string and dictionary formats
+                if isinstance(brand_relationships, str):
+                    try:
+                        # Try to parse as JSON if it's a string
+                        brand_relationships = json.loads(brand_relationships)
+                    except json.JSONDecodeError:
+                        # If parsing fails, display as raw text
+                        st.write(brand_relationships)
+                        brand_relationships = None
+                
+                if isinstance(brand_relationships, dict):
+                    # Create two columns for brand relationships
+                    cols = st.columns(2)
+                    for i, (brand, relationship) in enumerate(brand_relationships.items()):
+                        with cols[i % 2]:
+                            st.markdown(f"**{brand}:**\n\"{relationship}\"")
+                elif isinstance(brand_relationships, list):
+                    # Handle list format if present
+                    for relationship in brand_relationships:
+                        if isinstance(relationship, dict):
+                            brand = relationship.get("brand", "")
+                            description = relationship.get("relationship", "")
+                            if brand and description:
+                                st.markdown(f"**{brand}:**\n\"{description}\"")
+                        else:
+                            st.write(relationship)
+            else:
+                st.info("No brand relationships data available")
+        
         with feedback_subtabs[2]:
             st.write("**Generation/Age Range:**", persona.get("generation_age_range", "N/A"))
             st.write("**Persona Archetype:**", persona.get("persona_archetype_type", "N/A"))
