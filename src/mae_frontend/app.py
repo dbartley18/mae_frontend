@@ -1905,7 +1905,7 @@ def _render_market_research(analysis):
 
 # Main application layout
 st.title("MAE Brand Namer")
-st.caption("AI-driven brand naming and strategic analysis, powered by Alina Wheeler's methodology. Provides comprehensive insights: linguistic, semantic, cultural, SEO, domain, persona (derived from AI generated synthetic persona-based surveys), and competitive intelligence. For efficient, data-backed brand decisions.")
+st.caption("AI-driven brand naming and strategic analysis, powered by Alina Wheeler's methodology. Provides comprehensive insights: linguistic, semantic, cultural, SEO, domain, market research, targeted persona surveys (derived from AI generated synthetic personas), and competitive intelligence. For efficient, data-backed brand decisions.")
 
 # Sidebar for inputs
 with st.sidebar:
