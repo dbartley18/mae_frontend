@@ -227,7 +227,7 @@ market_research*
 seo_online_discovery*
 translation_analysis*
 
-requirements.md
-requirements/complete_flow
-requirements/node_to_step_mapping.md
 requirements/partial_stream_from_debug.md
+requirements/node_to_step_mapping.md
+requirements/complete_flow
+requirements.md
